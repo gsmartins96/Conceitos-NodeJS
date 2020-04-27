@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 
-const { uuid } = require("uuidv4");
+const { uuid, isUuid } = require("uuidv4");
 
 const app = express();
 
@@ -9,6 +9,16 @@ app.use(express.json());
 app.use(cors());
 
 const repositories = [];
+
+function idExists(request, response, next) {
+  const { id } = request.params;
+
+  if (!isUuid(id)) {
+    return response.status(400).json({ error: "Invalid project ID" });
+  }
+
+  return next();
+}
 
 app.get("/repositories", (request, response) => {
   return response.json(repositories);
@@ -25,13 +35,15 @@ app.post("/repositories", (request, response) => {
   return response.json(repository);
 });
 
-app.put("/repositories/:id", (request, response) => {
+app.put("/repositories/:id", idExists, (request, response) => {
   const { title, techs, url } = request.body;
   const { id } = request.params;
 
   const repositoryIndex = repositories.findIndex(
     (repository) => repository.id === id
   );
+
+  const likes = repositories[repositoryIndex].likes;
 
   if (repositoryIndex < 0) {
     return response.status(400).json({ error: "Repository not found" });
@@ -42,6 +54,7 @@ app.put("/repositories/:id", (request, response) => {
     title,
     techs,
     url,
+    likes,
   };
 
   repositories[repositoryIndex] = repository;
@@ -49,7 +62,7 @@ app.put("/repositories/:id", (request, response) => {
   return response.json(repositories);
 });
 
-app.delete("/repositories/:id", (request, response) => {
+app.delete("/repositories/:id", idExists, (request, response) => {
   const { id } = request.params;
 
   const repositoryIndex = repositories.findIndex(
@@ -65,7 +78,7 @@ app.delete("/repositories/:id", (request, response) => {
   return response.status(204).send();
 });
 
-app.post("/repositories/:id/like", (request, response) => {
+app.post("/repositories/:id/like", idExists, (request, response) => {
   const { id } = request.params;
 
   const repositoryIndex = repositories.findIndex(
@@ -78,11 +91,7 @@ app.post("/repositories/:id/like", (request, response) => {
 
   repository = repositories[repositoryIndex];
 
-  console.log("repository", repository);
-
   repository.likes = repository.likes + 1;
-
-  console.log("repository", repository);
 
   repositories.push(repository);
 
